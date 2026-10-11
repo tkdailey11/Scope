@@ -15,9 +15,9 @@ enum Theme {
     static let violet = Color(hex: 0xA855F7)
 
     // Surfaces: deep navy window, slightly lighter content field.
-    static let windowBackground = Color(hex: 0x0B1F36)
-    static let contentBackground = Color(hex: 0x102A47)
-    static let cardBackground = Color(hex: 0x16355A)
+    static let windowBackground = Color(hex: 0x15181D)
+    static let contentBackground = Color(hex: 0x1B2027)
+    static let cardBackground = Color(hex: 0x252B35)
 
     /// Default tint for selection and controls.
     static let accent = blue
