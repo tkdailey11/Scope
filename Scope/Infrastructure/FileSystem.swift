@@ -13,6 +13,7 @@ nonisolated protocol FileSystem: Sendable {
     func read(_ url: URL) throws -> Data
     /// Replaces the file atomically, creating parent directories as needed.
     func writeAtomically(_ data: Data, to url: URL) throws
+    func remove(_ url: URL) throws
     /// Follows symlinks so dotfile-manager setups (`~/.zshrc -> ~/dotfiles/zshrc`) keep their link.
     func resolvingSymlinks(_ url: URL) -> URL
 }
@@ -36,6 +37,10 @@ nonisolated struct LocalFileSystem: FileSystem {
         if let permissions = attributes?[.posixPermissions] {
             try? FileManager.default.setAttributes([.posixPermissions: permissions], ofItemAtPath: url.path(percentEncoded: false))
         }
+    }
+
+    func remove(_ url: URL) throws {
+        try FileManager.default.removeItem(at: url)
     }
 
     func resolvingSymlinks(_ url: URL) -> URL {
