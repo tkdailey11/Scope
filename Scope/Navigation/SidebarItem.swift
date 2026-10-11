@@ -47,7 +47,7 @@ enum SidebarItem: String, CaseIterable, Identifiable {
         case .path: "arrow.triangle.branch"
         case .aliases: "arrowshape.turn.up.right"
         case .functions: "curlybraces"
-        case .profiles: "person.crop.square.stack"
+        case .profiles: "person.2.crop.square.stack"
         case .machines: "laptopcomputer"
         case .diagnostics: "stethoscope"
         case .backups: "clock.arrow.circlepath"

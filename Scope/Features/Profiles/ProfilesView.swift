@@ -16,7 +16,7 @@ struct ProfilesView: View {
         Group {
             if appState.configuration.profiles.isEmpty {
                 ContentUnavailableView {
-                    Label("No Profiles", systemImage: "person.crop.square.stack")
+                    Label("No Profiles", systemImage: "person.2.crop.square.stack")
                 } description: {
                     Text("Profiles hold configuration for a context, like Work or Personal. Only one is active at a time, and it sits between Global and This Mac.")
                 } actions: {
