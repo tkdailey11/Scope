@@ -10,6 +10,8 @@ import SwiftUI
 
 struct FunctionEditor: View {
     @Binding var draft: FunctionDraft
+    /// Where a new function applies. Fixed once the function exists.
+    @Binding var scope: ConfigurationScope
     /// The function being edited, or nil when creating one.
     let function: ShellFunction?
     let hasUnsavedChanges: Bool
@@ -20,8 +22,6 @@ struct FunctionEditor: View {
     /// Validation messages stay hidden until the first edit or save attempt, so a blank form isn't shouting.
     @State private var showsValidation = false
     @State private var syntax: SyntaxCheckResult?
-
-    private var scope: ConfigurationScope { function?.scope ?? .global }
 
     private var existingNames: Set<String> {
         appState.functionNames(in: scope, excluding: function?.id)
@@ -37,8 +37,9 @@ struct FunctionEditor: View {
                     .textFieldStyle(.plain)
                     .autocorrectionDisabled()
                 Spacer()
-                ScopeLabel(scope: scope)
-                    .foregroundStyle(.secondary)
+                ScopePicker(scope: $scope, isEditable: function == nil)
+                    .labelsHidden()
+                    .fixedSize()
                 Toggle("Enabled", isOn: $draft.isEnabled)
                     .toggleStyle(.switch)
             }

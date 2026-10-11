@@ -3,13 +3,14 @@
 //  Scope
 //
 //  Sidebar grouping from Design/03_Information_Architecture.md.
-//  Profiles, Machines and Sync sections arrive with their features.
+//  The Sync section arrives with its feature.
 //
 
 import Foundation
 
 enum SidebarSection: CaseIterable, Identifiable {
     case configuration
+    case scopes
     case utilities
 
     var id: Self { self }
@@ -17,6 +18,7 @@ enum SidebarSection: CaseIterable, Identifiable {
     var title: LocalizedStringResource {
         switch self {
         case .configuration: "Configuration"
+        case .scopes: "Where It Applies"
         case .utilities: "Utilities"
         }
     }

@@ -12,6 +12,7 @@ struct PathEntryEditor: View {
     @Environment(AppState.self) private var appState
     @Environment(\.dismiss) private var dismiss
     @State private var draft: PathEntryDraft
+    @State private var scope: ConfigurationScope
     /// Validation messages stay hidden until the first edit or save attempt, so a blank form isn't shouting.
     @State private var showsValidation = false
     @State private var isChoosingDirectory = false
@@ -19,9 +20,8 @@ struct PathEntryEditor: View {
     init(request: PathEntryEditorRequest) {
         self.request = request
         _draft = State(initialValue: request.initialDraft)
+        _scope = State(initialValue: request.entry?.scope ?? .global)
     }
-
-    private var scope: ConfigurationScope { request.entry?.scope ?? .global }
 
     private var existingPaths: Set<String> {
         appState.pathStrings(in: scope, excluding: request.entry?.id)
@@ -47,6 +47,8 @@ struct PathEntryEditor: View {
                         .foregroundStyle(.orange)
                 }
 
+                ScopePicker(scope: $scope, isEditable: request.entry == nil)
+
                 Toggle("Enabled", isOn: $draft.isEnabled)
             } footer: {
                 Text("Use ~ or $HOME for your home folder. New entries are added at the bottom; drag them in the list to change priority.")
@@ -60,7 +62,7 @@ struct PathEntryEditor: View {
             }
         }
         .formStyle(.grouped)
-        .frame(minWidth: 460, minHeight: 300)
+        .frame(minWidth: 460, minHeight: 340)
         .navigationTitle(request.entry == nil ? "Add Directory" : "Edit Directory")
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {

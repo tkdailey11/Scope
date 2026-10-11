@@ -13,6 +13,7 @@ struct FunctionsView: View {
     @State private var selection: ShellFunction.ID?
     /// A function being created. Shown when nothing is selected.
     @State private var newDraft: FunctionDraft?
+    @State private var newScope = ConfigurationScope.global
     /// Unsaved edits per function, so switching rows never loses work.
     @State private var edits: [ShellFunction.ID: FunctionDraft] = [:]
     @State private var isConfirmingDeletion = false
@@ -111,6 +112,7 @@ struct FunctionsView: View {
                     get: { edits[function.id] ?? FunctionDraft(function) },
                     set: { edits[function.id] = $0 == FunctionDraft(function) ? nil : $0 }
                 ),
+                scope: .constant(function.scope),
                 function: function,
                 hasUnsavedChanges: edits[function.id] != nil,
                 onSave: { save(function) },
@@ -120,6 +122,7 @@ struct FunctionsView: View {
         } else if newDraft != nil {
             FunctionEditor(
                 draft: Binding(get: { newDraft ?? FunctionDraft() }, set: { newDraft = $0 }),
+                scope: $newScope,
                 function: nil,
                 hasUnsavedChanges: newDraft != FunctionDraft(),
                 onSave: saveNew,
@@ -147,7 +150,7 @@ struct FunctionsView: View {
     }
 
     private func saveNew() {
-        guard let draft = newDraft, let id = appState.saveFunction(draft) else { return }
+        guard let draft = newDraft, let id = appState.saveFunction(draft, scope: newScope) else { return }
         newDraft = nil
         selection = id
     }

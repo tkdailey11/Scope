@@ -10,6 +10,7 @@ struct SidebarTests {
 
     @Test func configurationSectionOrderMatchesInformationArchitecture() {
         #expect(SidebarSection.configuration.items == [.overview, .environment, .path, .aliases, .functions])
+        #expect(SidebarSection.scopes.items == [.profiles, .machines])
         #expect(SidebarSection.utilities.items == [.diagnostics, .backups])
     }
 }

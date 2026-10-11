@@ -46,13 +46,15 @@ struct PathTests {
 
     @Test func duplicatesAndInvalidDraftsChangeNothing() async {
         let (state, store) = await makeState()
+        await state.waitForPendingSaves() // first-launch machine registration
+        let baseline = await store.saveCount
         state.savePathEntry(draft("/a"))
         #expect(!state.savePathEntry(draft("/a")))
         #expect(!state.savePathEntry(draft("")))
         await state.waitForPendingSaves()
 
         #expect(state.configuration.path.count == 1)
-        #expect(await store.saveCount == 1)
+        #expect(await store.saveCount == baseline + 1)
     }
 
     @Test func editingKeepsIdentityOrderAndScope() async throws {

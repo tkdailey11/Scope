@@ -11,6 +11,8 @@ enum SidebarItem: String, CaseIterable, Identifiable {
     case path
     case aliases
     case functions
+    case profiles
+    case machines
     case diagnostics
     case backups
 
@@ -19,6 +21,7 @@ enum SidebarItem: String, CaseIterable, Identifiable {
     var section: SidebarSection {
         switch self {
         case .overview, .environment, .path, .aliases, .functions: .configuration
+        case .profiles, .machines: .scopes
         case .diagnostics, .backups: .utilities
         }
     }
@@ -30,6 +33,8 @@ enum SidebarItem: String, CaseIterable, Identifiable {
         case .path: "PATH"
         case .aliases: "Aliases"
         case .functions: "Functions"
+        case .profiles: "Profiles"
+        case .machines: "Machines"
         case .diagnostics: "Diagnostics"
         case .backups: "Backups"
         }
@@ -42,6 +47,8 @@ enum SidebarItem: String, CaseIterable, Identifiable {
         case .path: "arrow.triangle.branch"
         case .aliases: "arrowshape.turn.up.right"
         case .functions: "curlybraces"
+        case .profiles: "person.crop.square.stack"
+        case .machines: "laptopcomputer"
         case .diagnostics: "stethoscope"
         case .backups: "clock.arrow.circlepath"
         }
@@ -55,6 +62,8 @@ enum SidebarItem: String, CaseIterable, Identifiable {
         case .path: "An ordered list of directories added to PATH."
         case .aliases: "Short names that expand to longer commands."
         case .functions: "Reusable shell functions."
+        case .profiles: "Named sets of configuration, like Work and Personal."
+        case .machines: "Configuration that applies only to one Mac."
         case .diagnostics: "Find out why your configuration isn't working."
         case .backups: "Restore files Scope has backed up."
         }

@@ -11,15 +11,16 @@ struct EnvironmentVariableEditor: View {
     @Environment(AppState.self) private var appState
     @Environment(\.dismiss) private var dismiss
     @State private var draft: EnvironmentVariableDraft
+    @State private var scope: ConfigurationScope
     /// Validation messages stay hidden until the first save attempt or edit, so a blank form isn't shouting.
     @State private var showsValidation = false
 
     init(request: EnvironmentVariableEditorRequest) {
         self.request = request
         _draft = State(initialValue: request.initialDraft)
+        _scope = State(initialValue: request.variable?.scope ?? .global)
     }
 
-    private var scope: ConfigurationScope { request.variable?.scope ?? .global }
     private var isSecretBacked: Bool { request.variable?.secretReference != nil }
 
     private var existingNames: Set<String> {
@@ -52,6 +53,8 @@ struct EnvironmentVariableEditor: View {
                     IssueText(message: draft.valueIssue())
                 }
 
+                ScopePicker(scope: $scope, isEditable: request.variable == nil)
+
                 Toggle("Enabled", isOn: $draft.isEnabled)
             } footer: {
                 Text(draft.valueMode == .literal
@@ -67,7 +70,7 @@ struct EnvironmentVariableEditor: View {
             }
         }
         .formStyle(.grouped)
-        .frame(minWidth: 460, minHeight: 380)
+        .frame(minWidth: 460, minHeight: 420)
         .navigationTitle(request.variable == nil ? "Add Variable" : "Edit Variable")
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {

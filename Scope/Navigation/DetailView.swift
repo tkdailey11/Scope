@@ -22,6 +22,10 @@ struct DetailView: View {
                 AliasView()
             case .functions:
                 FunctionsView()
+            case .profiles:
+                ProfilesView()
+            case .machines:
+                MachinesView()
             default:
                 ComingSoonView(item: item)
             }
@@ -34,4 +38,5 @@ struct DetailView: View {
 
 #Preview {
     DetailView(item: .path)
+        .environment(AppState(store: InMemoryConfigurationStore()))
 }

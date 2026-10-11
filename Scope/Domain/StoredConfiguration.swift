@@ -16,6 +16,8 @@ nonisolated struct StoredConfiguration: Codable, Equatable, Sendable {
     var path: [PathEntry] = []
     var aliases: [ShellAlias] = []
     var functions: [ShellFunction] = []
+    var profiles: [Profile] = []
+    var machines: [Machine] = []
 
     init() {}
 
@@ -26,6 +28,8 @@ nonisolated struct StoredConfiguration: Codable, Equatable, Sendable {
         path = try container.decodeIfPresent([PathEntry].self, forKey: .path) ?? []
         aliases = try container.decodeIfPresent([ShellAlias].self, forKey: .aliases) ?? []
         functions = try container.decodeIfPresent([ShellFunction].self, forKey: .functions) ?? []
+        profiles = try container.decodeIfPresent([Profile].self, forKey: .profiles) ?? []
+        machines = try container.decodeIfPresent([Machine].self, forKey: .machines) ?? []
     }
 
     var snapshot: ConfigurationSnapshot {

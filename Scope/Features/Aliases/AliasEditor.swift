@@ -11,15 +11,15 @@ struct AliasEditor: View {
     @Environment(AppState.self) private var appState
     @Environment(\.dismiss) private var dismiss
     @State private var draft: AliasDraft
+    @State private var scope: ConfigurationScope
     /// Validation messages stay hidden until the first edit or save attempt, so a blank form isn't shouting.
     @State private var showsValidation = false
 
     init(request: AliasEditorRequest) {
         self.request = request
         _draft = State(initialValue: request.initialDraft)
+        _scope = State(initialValue: request.alias?.scope ?? .global)
     }
-
-    private var scope: ConfigurationScope { request.alias?.scope ?? .global }
 
     private var existingNames: Set<String> {
         appState.aliasNames(in: scope, excluding: request.alias?.id)
@@ -39,6 +39,8 @@ struct AliasEditor: View {
                     .autocorrectionDisabled()
                 IssueText(message: showsValidation ? draft.commandIssue() : nil)
 
+                ScopePicker(scope: $scope, isEditable: request.alias == nil)
+
                 Toggle("Enabled", isOn: $draft.isEnabled)
             } footer: {
                 Text("The command is used exactly as typed. Nothing expands until you run the alias.")
@@ -52,7 +54,7 @@ struct AliasEditor: View {
             }
         }
         .formStyle(.grouped)
-        .frame(minWidth: 460, minHeight: 340)
+        .frame(minWidth: 460, minHeight: 380)
         .navigationTitle(request.alias == nil ? "Add Alias" : "Edit Alias")
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {

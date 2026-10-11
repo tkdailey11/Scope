@@ -12,11 +12,15 @@ struct PathView: View {
     @State private var idsPendingDeletion = Set<PathEntry.ID>()
     @State private var isConfirmingDeletion = false
 
-    private var entries: [PathEntry] { appState.pathEntries() }
+    /// Scopes that have entries, in the order they appear in `$PATH`: this Mac, profiles, then Global.
+    private var scopes: [ConfigurationScope] {
+        let used = Set(appState.configuration.path.map(\.scope))
+        return appState.availableScopes.reversed().filter(used.contains)
+    }
 
     var body: some View {
         Group {
-            if entries.isEmpty {
+            if scopes.isEmpty {
                 ContentUnavailableView {
                     Label("No PATH Entries", systemImage: "point.topleft.down.to.point.bottomright.curvepath")
                 } description: {
@@ -50,28 +54,50 @@ struct PathView: View {
 
     private var list: some View {
         List(selection: $selection) {
-            Section {
-                ForEach(Array(entries.enumerated()), id: \.element.id) { position, entry in
-                    PathEntryRow(
-                        position: position + 1,
-                        entry: entry,
-                        status: appState.pathInspector.status(of: entry.rawPath),
-                        onToggle: { appState.setPathEntry(entry.id, enabled: $0) }
-                    )
-                    .contextMenu {
-                        Button("Edit…") { edit(entry.id) }
-                        Button("Delete", role: .destructive) { requestDeletion(of: selectionOrSelf(entry.id)) }
-                    }
-                }
-                .onMove { appState.movePathEntries(fromOffsets: $0, toOffset: $1) }
-            } header: {
-                Text("Entries higher in the list are searched first.")
+            ForEach(scopes, id: \.self) { scope in
+                section(for: scope)
             }
         }
         .contextMenu(forSelectionType: PathEntry.ID.self, menu: { _ in }) { ids in
             edit(ids)
         }
         .onDeleteCommand(perform: deleteSelection)
+    }
+
+    private func section(for scope: ConfigurationScope) -> some View {
+        let entries = appState.pathEntries(in: scope)
+        let isInactive = isInactiveProfile(scope)
+        return Section {
+            ForEach(Array(entries.enumerated()), id: \.element.id) { position, entry in
+                PathEntryRow(
+                    position: position + 1,
+                    entry: entry,
+                    status: appState.pathInspector.status(of: entry.rawPath),
+                    onToggle: { appState.setPathEntry(entry.id, enabled: $0) }
+                )
+                .contextMenu {
+                    Button("Edit…") { edit(entry.id) }
+                    Button("Delete", role: .destructive) { requestDeletion(of: selectionOrSelf(entry.id)) }
+                }
+            }
+            .onMove { appState.movePathEntries(in: scope, fromOffsets: $0, toOffset: $1) }
+        } header: {
+            HStack {
+                ScopeLabel(scope: scope)
+                if isInactive {
+                    Text("Not active, so these aren't in your PATH")
+                        .foregroundStyle(.secondary)
+                }
+            }
+        } footer: {
+            if scope == scopes.last {
+                Text("Entries higher in the list are searched first. Sections higher up override those below.")
+            }
+        }
+    }
+
+    private func isInactiveProfile(_ scope: ConfigurationScope) -> Bool {
+        if case .profile(let id) = scope { id != appState.activeProfile?.id } else { false }
     }
 
     private var deletionTitle: String {
@@ -142,8 +168,6 @@ private struct PathEntryRow: View {
             if entry.isEnabled {
                 PathStatusLabel(status: status)
             }
-            ScopeLabel(scope: entry.scope)
-                .foregroundStyle(.secondary)
             EnabledToggle(isOn: entry.isEnabled, onChange: onToggle)
         }
         .padding(.vertical, 2)

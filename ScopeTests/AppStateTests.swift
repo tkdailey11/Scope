@@ -29,13 +29,15 @@ struct AppStateTests {
 
     @Test func invalidOrDuplicateDraftsChangeNothing() async {
         let (state, store) = await makeState()
+        await state.waitForPendingSaves() // first-launch machine registration
+        let baseline = await store.saveCount
         state.saveEnvironmentVariable(draft("A"))
         #expect(!state.saveEnvironmentVariable(draft("A")))
         #expect(!state.saveEnvironmentVariable(draft("1bad")))
         await state.waitForPendingSaves()
 
         #expect(state.configuration.environment.count == 1)
-        #expect(await store.saveCount == 1)
+        #expect(await store.saveCount == baseline + 1)
     }
 
     @Test func editingKeepsIdentityScopeAndCreationDate() async throws {

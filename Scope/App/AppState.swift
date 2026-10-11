@@ -13,11 +13,14 @@ import SwiftUI
 @Observable
 final class AppState {
     private(set) var configuration = StoredConfiguration()
+    /// This Mac's entry in `configuration.machines`; set once the configuration has loaded.
+    private(set) var currentMachineID: UUID?
     /// Set when something the user should know about fails (load or save).
     var errorMessage: String?
 
     private let store: any ConfigurationStore
     private let now: () -> Date
+    private let deviceIdentity: DeviceIdentity
     let pathInspector: PathInspector
     private let syntaxValidator: ShellSyntaxValidator
     private var saveTask: Task<Void, Never>?
@@ -30,9 +33,11 @@ final class AppState {
         store: any ConfigurationStore,
         pathInspector: PathInspector = PathInspector(),
         syntaxValidator: ShellSyntaxValidator = ShellSyntaxValidator(fileSystem: LocalFileSystem(), processRunner: SystemProcessRunner()),
+        deviceIdentity: DeviceIdentity = .current,
         now: @escaping () -> Date = { .now }
     ) {
         self.store = store
+        self.deviceIdentity = deviceIdentity
         self.pathInspector = pathInspector
         self.syntaxValidator = syntaxValidator
         self.now = now
@@ -43,6 +48,7 @@ final class AppState {
     func load() async {
         do {
             configuration = try await store.load()
+            registerCurrentMachine()
         } catch ConfigurationStoreError.unreadable(let preservedAt) {
             isReadOnly = true
             errorMessage = String(localized: "Scope couldn't read its saved configuration. A copy was kept at \(preservedAt.path(percentEncoded: false)). Changes won't be saved until this is resolved.")
@@ -73,6 +79,131 @@ final class AppState {
                 errorMessage = String(localized: "Scope couldn't save your changes: \(error.localizedDescription)")
             }
         }
+    }
+
+    // MARK: - Profiles and machines
+
+    var activeProfile: Profile? {
+        configuration.profiles.first(where: \.isActive)
+    }
+
+    var currentMachine: Machine? {
+        configuration.machines.first { $0.id == currentMachineID }
+    }
+
+    /// Profiles sorted by name.
+    var profilesByName: [Profile] {
+        configuration.profiles.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+    }
+
+    /// Global, every profile, then this Mac. What an item can be scoped to.
+    var availableScopes: [ConfigurationScope] {
+        [.global] + profilesByName.map { .profile($0.id) } + (currentMachineID.map { [.machine($0)] } ?? [])
+    }
+
+    /// The result of composing Global -> active Profile -> this Mac.
+    var effectiveConfiguration: EffectiveConfiguration {
+        ConfigurationComposer.compose(configuration.snapshot, activeProfileID: activeProfile?.id, machineID: currentMachineID)
+    }
+
+    func name(of scope: ConfigurationScope) -> String {
+        switch scope {
+        case .global:
+            String(localized: "Global")
+        case .profile(let id):
+            configuration.profiles.first { $0.id == id }?.name ?? String(localized: "Deleted Profile")
+        case .machine(let id):
+            id == currentMachineID
+                ? String(localized: "This Mac")
+                : configuration.machines.first { $0.id == id }?.displayName ?? String(localized: "Unknown Mac")
+        }
+    }
+
+    /// Adds this Mac on first launch and keeps its display name current after renames.
+    private func registerCurrentMachine() {
+        if let index = configuration.machines.firstIndex(where: { $0.stableDeviceIdentifier == deviceIdentity.identifier }) {
+            currentMachineID = configuration.machines[index].id
+            guard configuration.machines[index].displayName != deviceIdentity.displayName else { return }
+            configuration.machines[index].displayName = deviceIdentity.displayName
+            configuration.machines[index].lastSeenAt = now()
+        } else {
+            let machine = Machine(displayName: deviceIdentity.displayName, stableDeviceIdentifier: deviceIdentity.identifier, lastSeenAt: now())
+            configuration.machines.append(machine)
+            currentMachineID = machine.id
+        }
+        persist()
+    }
+
+    func profileNames(excluding id: UUID? = nil) -> Set<String> {
+        Set(configuration.profiles.filter { $0.id != id }.map { $0.name.lowercased() })
+    }
+
+    /// Creates a profile, or renames/re-icons the one with `id`. Returns the profile's id,
+    /// or nil (changing nothing) if the name is empty or already used.
+    @discardableResult
+    func saveProfile(name: String, iconName: String? = nil, replacing id: UUID? = nil) -> UUID? {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, !profileNames(excluding: id).contains(trimmed.lowercased()) else { return nil }
+
+        let savedID: UUID
+        if let id, let index = configuration.profiles.firstIndex(where: { $0.id == id }) {
+            configuration.profiles[index].name = trimmed
+            configuration.profiles[index].iconName = iconName
+            configuration.profiles[index].modifiedAt = now()
+            savedID = id
+        } else {
+            let profile = Profile(name: trimmed, iconName: iconName, createdAt: now(), modifiedAt: now())
+            configuration.profiles.append(profile)
+            savedID = profile.id
+        }
+        persist()
+        return savedID
+    }
+
+    /// Makes `id` the single active profile, or deactivates all when nil.
+    func setActiveProfile(_ id: UUID?) {
+        var changed = false
+        for index in configuration.profiles.indices {
+            let shouldBeActive = configuration.profiles[index].id == id
+            guard configuration.profiles[index].isActive != shouldBeActive else { continue }
+            configuration.profiles[index].isActive = shouldBeActive
+            configuration.profiles[index].modifiedAt = now()
+            changed = true
+        }
+        if changed { persist() }
+    }
+
+    /// Removes the profile and every item scoped to it.
+    func deleteProfile(_ id: UUID) {
+        guard configuration.profiles.contains(where: { $0.id == id }) else { return }
+        configuration.profiles.removeAll { $0.id == id }
+        removeItems(in: .profile(id))
+        persist()
+    }
+
+    /// Removes a machine's overrides. Only other Macs can be forgotten; this Mac re-registers on launch.
+    func forgetMachine(_ id: UUID) {
+        guard id != currentMachineID, configuration.machines.contains(where: { $0.id == id }) else { return }
+        configuration.machines.removeAll { $0.id == id }
+        removeItems(in: .machine(id))
+        persist()
+    }
+
+    /// Number of items scoped to `scope`, by kind.
+    func itemCounts(in scope: ConfigurationScope) -> (environment: Int, path: Int, aliases: Int, functions: Int) {
+        (
+            configuration.environment.filter { $0.scope == scope }.count,
+            configuration.path.filter { $0.scope == scope }.count,
+            configuration.aliases.filter { $0.scope == scope }.count,
+            configuration.functions.filter { $0.scope == scope }.count
+        )
+    }
+
+    private func removeItems(in scope: ConfigurationScope) {
+        configuration.environment.removeAll { $0.scope == scope }
+        configuration.path.removeAll { $0.scope == scope }
+        configuration.aliases.removeAll { $0.scope == scope }
+        configuration.functions.removeAll { $0.scope == scope }
     }
 
     // MARK: - Environment variables
