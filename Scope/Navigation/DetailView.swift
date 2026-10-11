@@ -30,6 +30,8 @@ struct DetailView: View {
                 ProfilesView()
             case .machines:
                 MachinesView()
+            case .importConfig:
+                ImportView()
             default:
                 ComingSoonView(item: item)
             }

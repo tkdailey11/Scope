@@ -16,6 +16,7 @@ enum SidebarItem: String, CaseIterable, Identifiable {
     case machines
     case diagnostics
     case backups
+    case importConfig
 
     var id: Self { self }
 
@@ -23,7 +24,7 @@ enum SidebarItem: String, CaseIterable, Identifiable {
         switch self {
         case .overview, .environment, .path, .aliases, .functions, .generated: .configuration
         case .profiles, .machines: .scopes
-        case .diagnostics, .backups: .utilities
+        case .diagnostics, .backups, .importConfig: .utilities
         }
     }
 
@@ -39,6 +40,7 @@ enum SidebarItem: String, CaseIterable, Identifiable {
         case .machines: "Machines"
         case .diagnostics: "Diagnostics"
         case .backups: "Backups"
+        case .importConfig: "Import"
         }
     }
 
@@ -54,6 +56,7 @@ enum SidebarItem: String, CaseIterable, Identifiable {
         case .machines: "laptopcomputer"
         case .diagnostics: "stethoscope"
         case .backups: "clock.arrow.circlepath"
+        case .importConfig: "square.and.arrow.down"
         }
     }
 
@@ -70,6 +73,7 @@ enum SidebarItem: String, CaseIterable, Identifiable {
         case .machines: "Configuration that applies only to one Mac."
         case .diagnostics: "Find out why your configuration isn't working."
         case .backups: "Restore files Scope has backed up."
+        case .importConfig: "Bring existing aliases, exports, PATH and functions into Scope."
         }
     }
 }

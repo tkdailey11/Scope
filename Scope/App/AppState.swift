@@ -28,6 +28,7 @@ final class AppState {
     private let syntaxValidator: ShellSyntaxValidator
     private let applyService: ApplyService
     private let diagnosticsService: DiagnosticsService
+    private let importScanner: ImportScanner
     private var saveTask: Task<Void, Never>?
     /// True after a failed load, so a bad file is never overwritten by an empty config.
     private var isReadOnly = false
@@ -40,12 +41,14 @@ final class AppState {
         syntaxValidator: ShellSyntaxValidator = ShellSyntaxValidator(fileSystem: LocalFileSystem(), processRunner: SystemProcessRunner()),
         applyService: ApplyService = ApplyService(fileSystem: LocalFileSystem(), paths: ScopePaths(), processRunner: SystemProcessRunner()),
         diagnosticsService: DiagnosticsService = DiagnosticsService(fileSystem: LocalFileSystem(), paths: ScopePaths(), processRunner: SystemProcessRunner()),
+        importScanner: ImportScanner = ImportScanner(fileSystem: LocalFileSystem(), paths: ScopePaths()),
         deviceIdentity: DeviceIdentity = .current,
         now: @escaping () -> Date = { .now }
     ) {
         self.store = store
         self.applyService = applyService
         self.diagnosticsService = diagnosticsService
+        self.importScanner = importScanner
         self.deviceIdentity = deviceIdentity
         self.pathInspector = pathInspector
         self.syntaxValidator = syntaxValidator
@@ -241,6 +244,71 @@ final class AppState {
 
     func runDiagnostics() async -> [DiagnosticCheck] {
         await diagnosticsService.run(effectiveConfiguration)
+    }
+
+    // MARK: - Import
+
+    /// Reads the user's zsh startup files. Read-only: nothing is changed or removed there.
+    func scanForImport() async -> ImportScanResult {
+        await importScanner.scan()
+    }
+
+    /// True if Scope already has this item in `scope`, so importing it would duplicate it.
+    func isAlreadyInScope(_ item: ImportedItem, scope: ConfigurationScope) -> Bool {
+        switch item {
+        case .environment(let name, _, _): environmentNames(in: scope).contains(name)
+        case .path(let raw): pathStrings(in: scope).contains(raw)
+        case .alias(let name, _): aliasNames(in: scope).contains(name)
+        case .function(let name, _): functionNames(in: scope).contains(name)
+        }
+    }
+
+    /// Creates Scope items from reviewed import candidates, in one save. Items that already exist
+    /// in `scope` or fail validation are left out. Returns how many were added.
+    @discardableResult
+    func importItems(_ items: [ImportedItem], into scope: ConfigurationScope) -> Int {
+        var added = 0
+        for item in items {
+            switch item {
+            case .environment(let name, let value, let mode):
+                var draft = EnvironmentVariableDraft()
+                draft.name = name
+                draft.value = value
+                draft.valueMode = mode
+                guard draft.isValid(existingNames: environmentNames(in: scope)) else { continue }
+                configuration.environment.append(EnvironmentVariable(
+                    name: name, value: value, valueMode: mode, scope: scope, createdAt: now(), modifiedAt: now()
+                ))
+            case .path(let raw):
+                var draft = PathEntryDraft()
+                draft.rawPath = raw
+                guard draft.isValid(existingPaths: pathStrings(in: scope)) else { continue }
+                // Items arrive highest priority first; each lands below what's already there.
+                let nextOrder = (configuration.path.filter { $0.scope == scope }.map(\.order).max() ?? -1) + 1
+                configuration.path.append(PathEntry(
+                    rawPath: draft.trimmedPath, order: nextOrder, scope: scope, createdAt: now(), modifiedAt: now()
+                ))
+            case .alias(let name, let command):
+                var draft = AliasDraft()
+                draft.name = name
+                draft.command = command
+                guard draft.isValid(existingNames: aliasNames(in: scope)) else { continue }
+                configuration.aliases.append(ShellAlias(
+                    name: name, command: command, scope: scope, createdAt: now(), modifiedAt: now()
+                ))
+            case .function(let name, let body):
+                var draft = FunctionDraft()
+                draft.name = name
+                draft.body = body
+                guard draft.isValid(existingNames: functionNames(in: scope)) else { continue }
+                configuration.functions.append(ShellFunction(
+                    name: name, body: body, scope: scope, createdAt: now(), modifiedAt: now()
+                ))
+            }
+            added += 1
+        }
+        if added > 0 { persist() }
+        return added
     }
 
     func dismissApplyResult() {
