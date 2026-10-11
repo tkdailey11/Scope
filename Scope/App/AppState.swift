@@ -27,6 +27,7 @@ final class AppState {
     let pathInspector: PathInspector
     private let syntaxValidator: ShellSyntaxValidator
     private let applyService: ApplyService
+    private let diagnosticsService: DiagnosticsService
     private var saveTask: Task<Void, Never>?
     /// True after a failed load, so a bad file is never overwritten by an empty config.
     private var isReadOnly = false
@@ -38,11 +39,13 @@ final class AppState {
         pathInspector: PathInspector = PathInspector(),
         syntaxValidator: ShellSyntaxValidator = ShellSyntaxValidator(fileSystem: LocalFileSystem(), processRunner: SystemProcessRunner()),
         applyService: ApplyService = ApplyService(fileSystem: LocalFileSystem(), paths: ScopePaths(), processRunner: SystemProcessRunner()),
+        diagnosticsService: DiagnosticsService = DiagnosticsService(fileSystem: LocalFileSystem(), paths: ScopePaths(), processRunner: SystemProcessRunner()),
         deviceIdentity: DeviceIdentity = .current,
         now: @escaping () -> Date = { .now }
     ) {
         self.store = store
         self.applyService = applyService
+        self.diagnosticsService = diagnosticsService
         self.deviceIdentity = deviceIdentity
         self.pathInspector = pathInspector
         self.syntaxValidator = syntaxValidator
@@ -234,6 +237,10 @@ final class AppState {
             applyResult = .failure(.hookFailed(error.localizedDescription))
         }
         return false
+    }
+
+    func runDiagnostics() async -> [DiagnosticCheck] {
+        await diagnosticsService.run(effectiveConfiguration)
     }
 
     func dismissApplyResult() {

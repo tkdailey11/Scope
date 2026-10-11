@@ -24,6 +24,8 @@ struct DetailView: View {
                 FunctionsView()
             case .generated:
                 GeneratedConfigView()
+            case .diagnostics:
+                DiagnosticsView()
             case .profiles:
                 ProfilesView()
             case .machines:
