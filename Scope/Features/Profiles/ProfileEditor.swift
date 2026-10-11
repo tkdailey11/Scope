@@ -35,21 +35,22 @@ struct ProfileEditor: View {
     }
 
     var body: some View {
-        Form {
-            Section {
-                TextField("Name", text: $name, prompt: Text("Work"))
-                    .autocorrectionDisabled()
-                IssueText(message: showsValidation ? nameIssue : nil)
+        CardPage {
+            CardSection {
+                CardField(label: "Name", text: $name, prompt: "Work", issue: showsValidation ? nameIssue : nil)
 
-                Picker("Icon", selection: $iconName) {
-                    ForEach(Self.icons, id: \.self) { icon in
-                        Image(systemName: icon).tag(icon).accessibilityLabel(icon)
+                HStack {
+                    Text("Icon").foregroundStyle(.secondary)
+                    Picker("Icon", selection: $iconName) {
+                        ForEach(Self.icons, id: \.self) { icon in
+                            Image(systemName: icon).tag(icon).accessibilityLabel(icon)
+                        }
                     }
+                    .labelsHidden()
+                    .pickerStyle(.palette)
                 }
-                .pickerStyle(.palette)
             }
         }
-        .formStyle(.grouped)
         .frame(minWidth: 420, minHeight: 200)
         .navigationTitle(request.profile == nil ? "Add Profile" : "Edit Profile")
         .toolbar {

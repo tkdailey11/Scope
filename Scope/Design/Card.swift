@@ -22,6 +22,7 @@ struct CardPage<Content: View>: View {
             .padding(24)
             .frame(maxWidth: .infinity)
         }
+        .background(Theme.contentBackground)
     }
 }
 
@@ -77,6 +78,51 @@ struct CardSection<Content: View>: View {
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 4)
             }
+        }
+    }
+}
+
+/// A labelled single- or multi-line text field row for use inside a `CardSection`.
+struct CardField: View {
+    let label: LocalizedStringKey
+    @Binding var text: String
+    var prompt: String = ""
+    var monospaced = false
+    var multiline = false
+    var issue: String?
+    var trailing: AnyView?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                Text(label)
+                    .foregroundStyle(.secondary)
+                    .frame(width: 90, alignment: .leading)
+                TextField(label, text: $text, prompt: Text(prompt), axis: multiline ? .vertical : .horizontal)
+                    .labelsHidden()
+                    .textFieldStyle(.plain)
+                    .font(monospaced ? .body.monospaced() : .body)
+                    .lineLimit(multiline ? 1...6 : 1...1)
+                    .autocorrectionDisabled()
+                trailing
+            }
+            IssueText(message: issue)
+        }
+    }
+}
+
+/// A label with a trailing switch, for use inside a `CardSection`.
+struct CardToggle: View {
+    let label: LocalizedStringKey
+    @Binding var isOn: Bool
+
+    var body: some View {
+        HStack {
+            Text(label)
+            Spacer()
+            Toggle(label, isOn: $isOn)
+                .labelsHidden()
+                .toggleStyle(.switch)
         }
     }
 }

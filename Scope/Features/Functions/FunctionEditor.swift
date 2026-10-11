@@ -61,8 +61,8 @@ struct FunctionEditor: View {
                     .padding(.horizontal, 10).padding(.vertical, 6)
             }
             .font(.body.monospaced())
-            .background(Theme.contentBackground.opacity(0.5), in: .rect(cornerRadius: 8))
-            .overlay { RoundedRectangle(cornerRadius: 8).strokeBorder(.separator) }
+            .background(Theme.cardBackground, in: .rect(cornerRadius: Theme.cardRadius, style: .continuous))
+            .overlay { RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous).strokeBorder(Theme.cardBorder) }
 
             IssueText(message: showsValidation ? draft.bodyIssue() : nil)
             syntaxStatus

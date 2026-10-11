@@ -30,15 +30,11 @@ struct PathEntryEditor: View {
     private var pathIssue: String? { draft.pathIssue(existingPaths: existingPaths) }
 
     var body: some View {
-        Form {
-            Section {
-                HStack {
-                    TextField("Directory", text: $draft.rawPath, prompt: Text("~/go/bin"))
-                        .font(.body.monospaced())
-                        .autocorrectionDisabled()
-                    Button("Choose…") { isChoosingDirectory = true }
-                }
-                IssueText(message: showsValidation ? pathIssue : nil)
+        CardPage {
+            CardSection(footer: "Use ~ or $HOME for your home folder. New entries are added at the bottom; drag them in the list to change priority.") {
+                CardField(label: "Directory", text: $draft.rawPath, prompt: "~/go/bin", monospaced: true,
+                          issue: showsValidation ? pathIssue : nil,
+                          trailing: AnyView(Button("Choose…") { isChoosingDirectory = true }))
 
                 if pathIssue == nil, appState.pathInspector.status(of: draft.trimmedPath) == .missing {
                     Label("This directory doesn't exist on this Mac. It's still saved, and your shell ignores missing entries.",
@@ -49,19 +45,16 @@ struct PathEntryEditor: View {
 
                 ScopePicker(scope: $scope, isEditable: request.entry == nil)
 
-                Toggle("Enabled", isOn: $draft.isEnabled)
-            } footer: {
-                Text("Use ~ or $HOME for your home folder. New entries are added at the bottom; drag them in the list to change priority.")
+                CardToggle(label: "Enabled", isOn: $draft.isEnabled)
             }
 
-            Section("Generated") {
+            CardSection("Generated") {
                 Text(draft.generatedLine ?? "—")
                     .font(.body.monospaced())
                     .textSelection(.enabled)
                     .foregroundStyle(draft.generatedLine == nil ? .secondary : .primary)
             }
         }
-        .formStyle(.grouped)
         .frame(minWidth: 460, minHeight: 340)
         .navigationTitle(request.entry == nil ? "Add Directory" : "Edit Directory")
         .toolbar {

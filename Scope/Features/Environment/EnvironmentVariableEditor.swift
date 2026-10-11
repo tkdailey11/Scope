@@ -30,46 +30,42 @@ struct EnvironmentVariableEditor: View {
     private var nameIssue: String? { draft.nameIssue(existingNames: existingNames) }
 
     var body: some View {
-        Form {
-            Section {
-                TextField("Name", text: $draft.name, prompt: Text("EDITOR"))
-                    .font(.body.monospaced())
-                    .autocorrectionDisabled()
-                IssueText(message: showsValidation ? nameIssue : nil)
+        CardPage {
+            CardSection(title: nil, footer: Text(draft.valueMode == .literal
+                 ? "Literal: the value is used exactly as typed. Nothing expands."
+                 : "Expression: $VARIABLES and $(commands) expand when a new shell starts.")) {
+                CardField(label: "Name", text: $draft.name, prompt: "EDITOR", monospaced: true,
+                          issue: showsValidation ? nameIssue : nil)
 
-                Picker("Value type", selection: $draft.valueMode) {
-                    Text("Literal").tag(ValueMode.literal)
-                    Text("Expression").tag(ValueMode.expression)
+                HStack {
+                    Text("Value type").foregroundStyle(.secondary)
+                    Picker("Value type", selection: $draft.valueMode) {
+                        Text("Literal").tag(ValueMode.literal)
+                        Text("Expression").tag(ValueMode.expression)
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.segmented)
                 }
-                .pickerStyle(.segmented)
 
                 if isSecretBacked {
                     LabeledContent("Value", value: "Stored in Keychain")
                 } else {
-                    TextField("Value", text: $draft.value, prompt: Text("nvim"), axis: .vertical)
-                        .font(.body.monospaced())
-                        .lineLimit(1...6)
-                        .autocorrectionDisabled()
-                    IssueText(message: draft.valueIssue())
+                    CardField(label: "Value", text: $draft.value, prompt: "nvim", monospaced: true,
+                              multiline: true, issue: draft.valueIssue())
                 }
 
                 ScopePicker(scope: $scope, isEditable: request.variable == nil)
 
-                Toggle("Enabled", isOn: $draft.isEnabled)
-            } footer: {
-                Text(draft.valueMode == .literal
-                     ? "Literal: the value is used exactly as typed. Nothing expands."
-                     : "Expression: $VARIABLES and $(commands) expand when a new shell starts.")
+                CardToggle(label: "Enabled", isOn: $draft.isEnabled)
             }
 
-            Section("Generated") {
+            CardSection("Generated") {
                 Text(draft.generatedLine ?? "—")
                     .font(.body.monospaced())
                     .textSelection(.enabled)
                     .foregroundStyle(draft.generatedLine == nil ? .secondary : .primary)
             }
         }
-        .formStyle(.grouped)
         .frame(minWidth: 460, minHeight: 420)
         .navigationTitle(request.variable == nil ? "Add Variable" : "Edit Variable")
         .toolbar {

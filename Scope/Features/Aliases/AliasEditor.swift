@@ -26,34 +26,26 @@ struct AliasEditor: View {
     }
 
     var body: some View {
-        Form {
-            Section {
-                TextField("Name", text: $draft.name, prompt: Text("gs"))
-                    .font(.body.monospaced())
-                    .autocorrectionDisabled()
-                IssueText(message: showsValidation ? draft.nameIssue(existingNames: existingNames) : nil)
+        CardPage {
+            CardSection(footer: "The command is used exactly as typed. Nothing expands until you run the alias.") {
+                CardField(label: "Name", text: $draft.name, prompt: "gs", monospaced: true,
+                          issue: showsValidation ? draft.nameIssue(existingNames: existingNames) : nil)
 
-                TextField("Command", text: $draft.command, prompt: Text("git status"), axis: .vertical)
-                    .font(.body.monospaced())
-                    .lineLimit(1...6)
-                    .autocorrectionDisabled()
-                IssueText(message: showsValidation ? draft.commandIssue() : nil)
+                CardField(label: "Command", text: $draft.command, prompt: "git status", monospaced: true,
+                          multiline: true, issue: showsValidation ? draft.commandIssue() : nil)
 
                 ScopePicker(scope: $scope, isEditable: request.alias == nil)
 
-                Toggle("Enabled", isOn: $draft.isEnabled)
-            } footer: {
-                Text("The command is used exactly as typed. Nothing expands until you run the alias.")
+                CardToggle(label: "Enabled", isOn: $draft.isEnabled)
             }
 
-            Section("Generated") {
+            CardSection("Generated") {
                 Text(draft.generatedLine ?? "—")
                     .font(.body.monospaced())
                     .textSelection(.enabled)
                     .foregroundStyle(draft.generatedLine == nil ? .secondary : .primary)
             }
         }
-        .formStyle(.grouped)
         .frame(minWidth: 460, minHeight: 380)
         .navigationTitle(request.alias == nil ? "Add Alias" : "Edit Alias")
         .toolbar {
