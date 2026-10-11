@@ -2,8 +2,8 @@
 //  DetailView.swift
 //  Scope
 //
-//  Routes a sidebar item to its screen. Screens are placeholders until
-//  their implementation steps (Design/11_AI_Coding_Assistant_Brief.md).
+//  Routes a sidebar item to its screen. Screens not yet built show a placeholder
+//  (see the implementation order in Design/11_AI_Coding_Assistant_Brief.md).
 //
 
 import SwiftUI
@@ -12,11 +12,14 @@ struct DetailView: View {
     let item: SidebarItem
 
     var body: some View {
-        ContentUnavailableView(
-            String(localized: item.title),
-            systemImage: item.systemImage,
-            description: Text(item.summary)
-        )
+        Group {
+            switch item {
+            case .environment:
+                EnvironmentView()
+            default:
+                ComingSoonView(item: item)
+            }
+        }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Theme.contentBackground)
         .navigationTitle(String(localized: item.title))
@@ -24,5 +27,5 @@ struct DetailView: View {
 }
 
 #Preview {
-    DetailView(item: .environment)
+    DetailView(item: .path)
 }

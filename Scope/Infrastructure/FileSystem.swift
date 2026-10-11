@@ -58,6 +58,13 @@ nonisolated struct ScopePaths: Sendable {
 
     var scopeDirectory: URL { home.appending(path: ".scope", directoryHint: .isDirectory) }
     var generatedFile: URL { scopeDirectory.appending(path: "generated.zsh", directoryHint: .notDirectory) }
+    /// Scope's own structured data (the source of truth), kept apart from the generated shell file.
+    var applicationSupportDirectory: URL {
+        home.appending(path: "Library/Application Support/Scope", directoryHint: .isDirectory)
+    }
+    var configurationFile: URL {
+        applicationSupportDirectory.appending(path: "configuration.json", directoryHint: .notDirectory)
+    }
     var backupsDirectory: URL { scopeDirectory.appending(path: "backups", directoryHint: .isDirectory) }
     var backupIndex: URL { backupsDirectory.appending(path: "index.json", directoryHint: .notDirectory) }
     var zshrc: URL { home.appending(path: ".zshrc", directoryHint: .notDirectory) }

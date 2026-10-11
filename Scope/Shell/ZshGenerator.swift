@@ -16,15 +16,7 @@ nonisolated enum ZshGenerator {
     static func generate(_ config: EffectiveConfiguration) throws -> String {
         var sections: [String] = [header]
 
-        let env = try config.environment.compactMap { resolved -> String? in
-            let variable = resolved.item
-            guard variable.secretReference == nil, let value = variable.value else { return nil }
-            let quoted = switch variable.valueMode {
-            case .literal: try ZshQuoting.literal(value)
-            case .expression: try ZshQuoting.expression(value)
-            }
-            return "export \(variable.name)=\(quoted)"
-        }
+        let env = try config.environment.compactMap { try exportLine(for: $0.item) }
         if !env.isEmpty { sections.append(block("Environment", env)) }
 
         // `config.path` is highest priority first. Each line prepends, so emit in
@@ -48,6 +40,17 @@ nonisolated enum ZshGenerator {
         }
 
         return sections.joined(separator: "\n\n") + "\n"
+    }
+
+    /// The `export` line for one variable, or nil if it has no plaintext value to write
+    /// (secret-backed or empty). Also used by the editor to preview exactly what will be generated.
+    static func exportLine(for variable: EnvironmentVariable) throws -> String? {
+        guard variable.secretReference == nil, let value = variable.value else { return nil }
+        let quoted = switch variable.valueMode {
+        case .literal: try ZshQuoting.literal(value)
+        case .expression: try ZshQuoting.expression(value)
+        }
+        return "export \(variable.name)=\(quoted)"
     }
 
     private static func block(_ title: String, _ lines: [String]) -> String {
