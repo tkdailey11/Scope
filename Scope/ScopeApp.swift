@@ -11,7 +11,12 @@ import SwiftUI
 struct ScopeApp: App {
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            RootView()
+                .frame(minWidth: 800, minHeight: 520)
+                .tint(Theme.accent)
+                // Scope's design is dark-only (Design/05_Visual_Design_System.md).
+                .preferredColorScheme(.dark)
         }
+        .defaultSize(width: 1000, height: 680)
     }
 }
