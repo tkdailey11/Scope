@@ -1,0 +1,134 @@
+name: Release
+
+# Cutting a release is the same command CI runs and a laptop runs: Scripts/Release.sh. This
+# workflow only supplies credentials. See Docs/RELEASING.md for the one-time secret setup.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      draft:
+        description: "Create the GitHub release as a draft"
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-26
+    # The signing certificate, provisioning profile and notarization key live in the Prod
+    # environment's secrets.
+    environment: Prod
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The build number is the commit count, and the version's patch number comes from the
+          # existing release tags, so both need full history and tags.
+          fetch-depth: 0
+
+      - name: Choose the version
+        run: |
+          set -euo pipefail
+          series="$(tr -d '[:space:]' < VERSION)"
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            # A pushed tag names the version itself, but must belong to VERSION's series so a
+            # build is never labelled two different ways.
+            version="${GITHUB_REF_NAME#v}"
+            if [[ ! "$version" =~ ^${series//./\\.}\.[0-9]+$ ]]; then
+              echo "Tag $GITHUB_REF_NAME is not a release of VERSION ($series), e.g. v$series.1." >&2
+              exit 1
+            fi
+          else
+            version="$(Scripts/Version.sh)"
+          fi
+          echo "SCOPE_VERSION=$version" >> "$GITHUB_ENV"
+          echo "Releasing $version"
+
+      - name: Select Xcode
+        run: |
+          set -euo pipefail
+          sudo xcode-select -switch "$(ls -d /Applications/Xcode*.app | sort -V | tail -1)"
+          xcodebuild -version
+
+      - name: Import signing certificate
+        env:
+          CERTIFICATE_P12: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
+          P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          set -euo pipefail
+          keychain="$RUNNER_TEMP/scope-signing.keychain-db"
+          certificate="$RUNNER_TEMP/certificate.p12"
+          printf '%s' "$CERTIFICATE_P12" | base64 --decode > "$certificate"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$keychain"
+          security set-keychain-settings -lut 3600 "$keychain"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$keychain"
+          security import "$certificate" -k "$keychain" -P "$P12_PASSWORD" \
+            -T /usr/bin/codesign -T /usr/bin/security
+          # Without this, codesign blocks on a UI prompt that no one can answer.
+          security set-key-partition-list -S apple-tool:,apple:,codesign: \
+            -s -k "$KEYCHAIN_PASSWORD" "$keychain" > /dev/null
+          security list-keychain -d user -s "$keychain" login.keychain-db
+          rm -f "$certificate"
+          security find-identity -v -p codesigning "$keychain"
+
+      # Scope's iCloud and push entitlements are restricted, so the app only launches when it is
+      # signed with a Developer ID provisioning profile that grants them.
+      - name: Install provisioning profile
+        env:
+          PROFILE_BASE64: ${{ secrets.PROVISIONING_PROFILE_BASE64 }}
+        run: |
+          set -euo pipefail
+          profile="$RUNNER_TEMP/scope.provisionprofile"
+          printf '%s' "$PROFILE_BASE64" | base64 --decode > "$profile"
+          security cms -D -i "$profile" > "$RUNNER_TEMP/profile.plist"
+          uuid="$(/usr/libexec/PlistBuddy -c 'Print :UUID' "$RUNNER_TEMP/profile.plist")"
+          name="$(/usr/libexec/PlistBuddy -c 'Print :Name' "$RUNNER_TEMP/profile.plist")"
+          dir="$HOME/Library/MobileDevice/Provisioning Profiles"
+          mkdir -p "$dir"
+          cp "$profile" "$dir/$uuid.provisionprofile"
+          echo "SCOPE_PROFILE_NAME=$name" >> "$GITHUB_ENV"
+          echo "Installed profile: $name"
+
+      - name: Build, notarize and staple
+        env:
+          AC_API_KEY_ID: ${{ secrets.AC_API_KEY_ID }}
+          AC_API_ISSUER_ID: ${{ secrets.AC_API_ISSUER_ID }}
+          AC_API_KEY_BASE64: ${{ secrets.AC_API_KEY_BASE64 }}
+        run: |
+          set -euo pipefail
+          export AC_API_KEY_PATH="$RUNNER_TEMP/AuthKey.p8"
+          printf '%s' "$AC_API_KEY_BASE64" | base64 --decode > "$AC_API_KEY_PATH"
+          trap 'rm -f "$AC_API_KEY_PATH"' EXIT
+          Scripts/Release.sh
+
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          version="$SCOPE_VERSION"
+          build="$(git rev-list --count HEAD)"
+          zip=".build/release/Scope-$version.zip"
+          tag="v$version"
+          args=(--title "Scope $version" --notes "Scope $version (build $build), notarized.
+
+          Requires macOS 26 or newer.")
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            # Push the tag now rather than letting gh create it: a draft release has no tag until
+            # it is published, and Scripts/Version.sh counts tags to pick the next patch number.
+            # Tags pushed with the workflow token do not start this workflow again.
+            git tag "$tag"
+            git push origin "$tag"
+            if [[ "${{ inputs.draft }}" == "true" ]]; then
+              args+=(--draft)
+            fi
+          fi
+          gh release create "$tag" "$zip" "${args[@]}"
+
+      - name: Remove the signing keychain
+        if: always()
+        run: security delete-keychain "$RUNNER_TEMP/scope-signing.keychain-db" || true
