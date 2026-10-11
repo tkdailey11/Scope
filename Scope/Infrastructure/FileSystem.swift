@@ -10,6 +10,7 @@ import Foundation
 
 nonisolated protocol FileSystem: Sendable {
     func fileExists(at url: URL) -> Bool
+    func directoryExists(at url: URL) -> Bool
     func read(_ url: URL) throws -> Data
     /// Replaces the file atomically, creating parent directories as needed.
     func writeAtomically(_ data: Data, to url: URL) throws
@@ -21,6 +22,12 @@ nonisolated protocol FileSystem: Sendable {
 nonisolated struct LocalFileSystem: FileSystem {
     func fileExists(at url: URL) -> Bool {
         FileManager.default.fileExists(atPath: url.path(percentEncoded: false))
+    }
+
+    func directoryExists(at url: URL) -> Bool {
+        var isDirectory: ObjCBool = false
+        return FileManager.default.fileExists(atPath: url.path(percentEncoded: false), isDirectory: &isDirectory)
+            && isDirectory.boolValue
     }
 
     func read(_ url: URL) throws -> Data {

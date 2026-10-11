@@ -21,9 +21,7 @@ nonisolated enum ZshGenerator {
 
         // `config.path` is highest priority first. Each line prepends, so emit in
         // reverse: the last line written (highest priority) ends up first in $PATH.
-        let path = try config.path.reversed().map {
-            "export PATH=\"\(try ZshQuoting.pathComponent($0.rawPath).dropFirstAndLast()):$PATH\""
-        }
+        let path = try config.path.reversed().map { try pathLine(for: $0.rawPath) }
         if !path.isEmpty { sections.append(block("PATH", path)) }
 
         let aliases = try config.aliases.map {
@@ -51,6 +49,11 @@ nonisolated enum ZshGenerator {
         case .expression: try ZshQuoting.expression(value)
         }
         return "export \(variable.name)=\(quoted)"
+    }
+
+    /// The line that prepends one PATH entry. Also used by the editor to preview the generated output.
+    static func pathLine(for rawPath: String) throws -> String {
+        "export PATH=\"\(try ZshQuoting.pathComponent(rawPath).dropFirstAndLast()):$PATH\""
     }
 
     private static func block(_ title: String, _ lines: [String]) -> String {

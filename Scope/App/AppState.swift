@@ -8,6 +8,7 @@
 
 import Foundation
 import OSLog
+import SwiftUI
 
 @Observable
 final class AppState {
@@ -17,14 +18,20 @@ final class AppState {
 
     private let store: any ConfigurationStore
     private let now: () -> Date
+    let pathInspector: PathInspector
     private var saveTask: Task<Void, Never>?
     /// True after a failed load, so a bad file is never overwritten by an empty config.
     private var isReadOnly = false
 
     private static let logger = Logger(subsystem: "com.scope.Scope", category: "AppState")
 
-    init(store: any ConfigurationStore, now: @escaping () -> Date = { .now }) {
+    init(
+        store: any ConfigurationStore,
+        pathInspector: PathInspector = PathInspector(),
+        now: @escaping () -> Date = { .now }
+    ) {
         self.store = store
+        self.pathInspector = pathInspector
         self.now = now
     }
 
@@ -131,5 +138,79 @@ final class AppState {
         let before = configuration.environment.count
         configuration.environment.removeAll { ids.contains($0.id) }
         if configuration.environment.count != before { persist() }
+    }
+
+    // MARK: - PATH
+
+    /// Entries in `scope`, highest priority (first in $PATH) first.
+    func pathEntries(in scope: ConfigurationScope = .global) -> [PathEntry] {
+        configuration.path
+            .filter { $0.scope == scope }
+            .sorted { ($0.order, $0.createdAt) < ($1.order, $1.createdAt) }
+    }
+
+    /// Authored paths already used in `scope`, for duplicate detection. Pass the edited entry's id to exclude it.
+    func pathStrings(in scope: ConfigurationScope, excluding id: UUID? = nil) -> Set<String> {
+        Set(configuration.path.filter { $0.scope == scope && $0.id != id }.map(\.rawPath))
+    }
+
+    /// Creates an entry (lowest priority in its scope), or updates the one with `id`.
+    /// Returns false (changing nothing) if the draft is invalid.
+    @discardableResult
+    func savePathEntry(
+        _ draft: PathEntryDraft,
+        replacing id: UUID? = nil,
+        scope: ConfigurationScope = .global
+    ) -> Bool {
+        let existingIndex = id.flatMap { id in configuration.path.firstIndex { $0.id == id } }
+        let effectiveScope = existingIndex.map { configuration.path[$0].scope } ?? scope
+        guard draft.isValid(existingPaths: pathStrings(in: effectiveScope, excluding: id)) else { return false }
+
+        if let existingIndex {
+            configuration.path[existingIndex].rawPath = draft.trimmedPath
+            configuration.path[existingIndex].isEnabled = draft.isEnabled
+            configuration.path[existingIndex].modifiedAt = now()
+        } else {
+            let nextOrder = (configuration.path.filter { $0.scope == effectiveScope }.map(\.order).max() ?? -1) + 1
+            configuration.path.append(PathEntry(
+                rawPath: draft.trimmedPath,
+                order: nextOrder,
+                scope: effectiveScope,
+                isEnabled: draft.isEnabled,
+                createdAt: now(),
+                modifiedAt: now()
+            ))
+        }
+        persist()
+        return true
+    }
+
+    func setPathEntry(_ id: UUID, enabled: Bool) {
+        guard let index = configuration.path.firstIndex(where: { $0.id == id }),
+              configuration.path[index].isEnabled != enabled else { return }
+        configuration.path[index].isEnabled = enabled
+        configuration.path[index].modifiedAt = now()
+        persist()
+    }
+
+    /// Drag-reorder within one scope. Offsets refer to `pathEntries(in:)`; orders are renumbered 0…n.
+    func movePathEntries(in scope: ConfigurationScope = .global, fromOffsets source: IndexSet, toOffset destination: Int) {
+        var ordered = pathEntries(in: scope)
+        ordered.move(fromOffsets: source, toOffset: destination)
+        var changed = false
+        for (order, entry) in ordered.enumerated() {
+            guard let index = configuration.path.firstIndex(where: { $0.id == entry.id }),
+                  configuration.path[index].order != order else { continue }
+            configuration.path[index].order = order
+            configuration.path[index].modifiedAt = now()
+            changed = true
+        }
+        if changed { persist() }
+    }
+
+    func deletePathEntries(ids: Set<UUID>) {
+        let before = configuration.path.count
+        configuration.path.removeAll { ids.contains($0.id) }
+        if configuration.path.count != before { persist() }
     }
 }

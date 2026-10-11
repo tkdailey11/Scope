@@ -16,6 +16,8 @@ struct DetailView: View {
             switch item {
             case .environment:
                 EnvironmentView()
+            case .path:
+                PathView()
             default:
                 ComingSoonView(item: item)
             }
