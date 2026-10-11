@@ -19,6 +19,7 @@ struct SidebarView: View {
                 }
             }
         }
+        .tint(Theme.sidebarSelection)
         .safeAreaInset(edge: .top, spacing: 0) { SidebarHeader() }
         .navigationTitle("Scope")
     }

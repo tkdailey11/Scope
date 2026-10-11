@@ -18,6 +18,8 @@ enum Theme {
     static let windowBackground = Color(hex: 0x15181D)
     static let contentBackground = Color(hex: 0x1B2027)
     static let cardBackground = Color(hex: 0x252C37)
+    /// Sidebar selection highlight: a muted slate blue rather than the full accent.
+    static let sidebarSelection = Color(hex: 0x4A5568)
     static let cardBorder = Color.white.opacity(0.12)
 
     /// Default tint for selection and controls.
