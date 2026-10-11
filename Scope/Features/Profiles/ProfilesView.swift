@@ -46,8 +46,8 @@ struct ProfilesView: View {
     }
 
     private var list: some View {
-        List {
-            Section {
+        CardPage {
+            CardSection(footer: "Items in the active profile override Global items with the same name. Items scoped to This Mac override both.") {
                 ForEach(appState.profilesByName) { profile in
                     ProfileRow(
                         profile: profile,
@@ -62,8 +62,6 @@ struct ProfilesView: View {
                         Button("Delete…", role: .destructive) { profilePendingDeletion = profile }
                     }
                 }
-            } footer: {
-                Text("Items in the active profile override Global items with the same name. Items scoped to This Mac override both.")
             }
         }
     }

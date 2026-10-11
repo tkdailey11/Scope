@@ -18,12 +18,12 @@ struct DiagnosticsView: View {
     var body: some View {
         Group {
             if let checks {
-                List {
-                    summary(of: checks)
+                CardPage {
+                    CardSection { summary(of: checks) }
                     ForEach(DiagnosticCheck.Section.allCases, id: \.self) { section in
                         let rows = checks.filter { $0.section == section }
                         if !rows.isEmpty {
-                            Section(String(localized: section.title)) {
+                            CardSection(title: Text(section.title)) {
                                 ForEach(rows) { DiagnosticRow(check: $0) }
                             }
                         }

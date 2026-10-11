@@ -17,7 +17,8 @@ enum Theme {
     // Surfaces: deep navy window, slightly lighter content field.
     static let windowBackground = Color(hex: 0x15181D)
     static let contentBackground = Color(hex: 0x1B2027)
-    static let cardBackground = Color(hex: 0x252B35)
+    static let cardBackground = Color(hex: 0x252C37)
+    static let cardBorder = Color.white.opacity(0.12)
 
     /// Default tint for selection and controls.
     static let accent = blue

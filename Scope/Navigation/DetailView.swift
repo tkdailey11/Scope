@@ -39,6 +39,7 @@ struct DetailView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .scrollContentBackground(.hidden)
         .background(Theme.contentBackground)
         .navigationTitle(String(localized: item.title))
     }

@@ -11,8 +11,8 @@ struct SyncView: View {
     @Environment(SyncCoordinator.self) private var sync
 
     var body: some View {
-        Form {
-            Section {
+        CardPage {
+            CardSection {
                 Toggle("Sync with iCloud", isOn: enabledBinding)
                     .disabled(sync.isSyncing)
                 if let message = sync.accountStatus?.message, !sync.isEnabled || sync.lastError != nil {
@@ -25,7 +25,7 @@ struct SyncView: View {
             }
 
             if sync.isEnabled {
-                Section("Status") {
+                CardSection("Status") {
                     LabeledContent("Last synced") {
                         if let date = sync.state.lastSyncedAt {
                             Text(date, format: .relative(presentation: .named))
@@ -45,16 +45,14 @@ struct SyncView: View {
             }
 
             if !sync.conflicts.isEmpty {
-                Section {
+                CardSection(
+                    "Needs Your Decision",
+                    footer: "These items were changed on this Mac and on another. Nothing is overwritten until you choose."
+                ) {
                     ForEach(sync.conflicts) { SyncConflictRow(conflict: $0) }
-                } header: {
-                    Text("Needs Your Decision")
-                } footer: {
-                    Text("These items were changed on this Mac and on another. Nothing is overwritten until you choose.")
                 }
             }
         }
-        .formStyle(.grouped)
     }
 
     private var enabledBinding: Binding<Bool> {

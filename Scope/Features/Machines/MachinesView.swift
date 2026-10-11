@@ -19,18 +19,17 @@ struct MachinesView: View {
     }
 
     var body: some View {
-        List {
+        CardPage {
             if let machine = appState.currentMachine {
-                Section {
+                CardSection(
+                    "This Mac",
+                    footer: "Choose “This Mac” under Applies to when adding an item to override Global and Profile values here only."
+                ) {
                     MachineRow(machine: machine, counts: appState.itemCounts(in: .machine(machine.id)), isCurrent: true)
-                } header: {
-                    Text("This Mac")
-                } footer: {
-                    Text("Choose “This Mac” under Applies to when adding an item to override Global and Profile values here only.")
                 }
             }
             if !otherMachines.isEmpty {
-                Section("Other Macs") {
+                CardSection("Other Macs") {
                     ForEach(otherMachines) { machine in
                         MachineRow(machine: machine, counts: appState.itemCounts(in: .machine(machine.id)), isCurrent: false)
                             .contextMenu {

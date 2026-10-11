@@ -59,8 +59,8 @@ struct ImportView: View {
     }
 
     private var list: some View {
-        List {
-            Section {
+        CardPage {
+            CardSection {
                 ScopePicker(scope: $scope)
                 Text("Scope copies what you select. Your original files are not changed, so nothing is removed from your shell until you decide to clean it up.")
                     .font(.callout)
@@ -74,7 +74,7 @@ struct ImportView: View {
                 }
             }
             ForEach(groupTitles, id: \.self) { title in
-                Section(title) {
+                CardSection(LocalizedStringKey(title)) {
                     ForEach($rows) { $row in
                         if row.candidate.item.kindTitle == title {
                             ImportRowView(
@@ -86,7 +86,7 @@ struct ImportView: View {
                 }
             }
             if !detected.isEmpty {
-                Section {
+                CardSection {
                     DisclosureGroup("Not imported (\(detected.count))") {
                         ForEach(detected) { line in
                             VStack(alignment: .leading, spacing: 2) {
