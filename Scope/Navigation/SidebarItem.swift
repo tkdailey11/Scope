@@ -11,6 +11,7 @@ enum SidebarItem: String, CaseIterable, Identifiable {
     case path
     case aliases
     case functions
+    case generated
     case profiles
     case machines
     case diagnostics
@@ -20,7 +21,7 @@ enum SidebarItem: String, CaseIterable, Identifiable {
 
     var section: SidebarSection {
         switch self {
-        case .overview, .environment, .path, .aliases, .functions: .configuration
+        case .overview, .environment, .path, .aliases, .functions, .generated: .configuration
         case .profiles, .machines: .scopes
         case .diagnostics, .backups: .utilities
         }
@@ -33,6 +34,7 @@ enum SidebarItem: String, CaseIterable, Identifiable {
         case .path: "PATH"
         case .aliases: "Aliases"
         case .functions: "Functions"
+        case .generated: "Generated Config"
         case .profiles: "Profiles"
         case .machines: "Machines"
         case .diagnostics: "Diagnostics"
@@ -47,6 +49,7 @@ enum SidebarItem: String, CaseIterable, Identifiable {
         case .path: "arrow.triangle.branch"
         case .aliases: "arrowshape.turn.up.right"
         case .functions: "curlybraces"
+        case .generated: "doc.text"
         case .profiles: "person.2.crop.square.stack"
         case .machines: "laptopcomputer"
         case .diagnostics: "stethoscope"
@@ -62,6 +65,7 @@ enum SidebarItem: String, CaseIterable, Identifiable {
         case .path: "An ordered list of directories added to PATH."
         case .aliases: "Short names that expand to longer commands."
         case .functions: "Reusable shell functions."
+        case .generated: "Preview the shell file Scope writes, and apply it."
         case .profiles: "Named sets of configuration, like Work and Personal."
         case .machines: "Configuration that applies only to one Mac."
         case .diagnostics: "Find out why your configuration isn't working."

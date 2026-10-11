@@ -22,6 +22,8 @@ struct DetailView: View {
                 AliasView()
             case .functions:
                 FunctionsView()
+            case .generated:
+                GeneratedConfigView()
             case .profiles:
                 ProfilesView()
             case .machines:

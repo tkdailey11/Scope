@@ -17,12 +17,16 @@ final class AppState {
     private(set) var currentMachineID: UUID?
     /// Set when something the user should know about fails (load or save).
     var errorMessage: String?
+    /// Shown on the Preview screen after Apply finishes.
+    private(set) var applyResult: ApplyResultMessage?
+    private(set) var isApplying = false
 
     private let store: any ConfigurationStore
     private let now: () -> Date
     private let deviceIdentity: DeviceIdentity
     let pathInspector: PathInspector
     private let syntaxValidator: ShellSyntaxValidator
+    private let applyService: ApplyService
     private var saveTask: Task<Void, Never>?
     /// True after a failed load, so a bad file is never overwritten by an empty config.
     private var isReadOnly = false
@@ -33,10 +37,12 @@ final class AppState {
         store: any ConfigurationStore,
         pathInspector: PathInspector = PathInspector(),
         syntaxValidator: ShellSyntaxValidator = ShellSyntaxValidator(fileSystem: LocalFileSystem(), processRunner: SystemProcessRunner()),
+        applyService: ApplyService = ApplyService(fileSystem: LocalFileSystem(), paths: ScopePaths(), processRunner: SystemProcessRunner()),
         deviceIdentity: DeviceIdentity = .current,
         now: @escaping () -> Date = { .now }
     ) {
         self.store = store
+        self.applyService = applyService
         self.deviceIdentity = deviceIdentity
         self.pathInspector = pathInspector
         self.syntaxValidator = syntaxValidator
@@ -204,6 +210,34 @@ final class AppState {
         configuration.path.removeAll { $0.scope == scope }
         configuration.aliases.removeAll { $0.scope == scope }
         configuration.functions.removeAll { $0.scope == scope }
+    }
+
+    // MARK: - Preview and Apply
+
+    func preview() async -> ConfigurationPreview {
+        await applyService.preview(effectiveConfiguration)
+    }
+
+    /// Writes the generated file and ensures the startup hook. Returns true on success.
+    @discardableResult
+    func apply() async -> Bool {
+        guard !isApplying else { return false }
+        isApplying = true
+        defer { isApplying = false }
+        do {
+            let outcome = try await applyService.apply(effectiveConfiguration)
+            applyResult = .success(outcome)
+            return true
+        } catch let error as ApplyError {
+            applyResult = .failure(error)
+        } catch {
+            applyResult = .failure(.hookFailed(error.localizedDescription))
+        }
+        return false
+    }
+
+    func dismissApplyResult() {
+        applyResult = nil
     }
 
     // MARK: - Environment variables
@@ -485,4 +519,9 @@ final class AppState {
             return nil
         }
     }
+}
+
+enum ApplyResultMessage: Equatable {
+    case success(ApplyOutcome)
+    case failure(ApplyError)
 }
