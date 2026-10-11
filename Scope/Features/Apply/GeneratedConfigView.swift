@@ -13,6 +13,7 @@ struct GeneratedConfigView: View {
     @State private var preview: ConfigurationPreview?
     /// Bumped after Apply so the preview re-reads the file on disk.
     @State private var refreshCount = 0
+    @State private var isTesting = false
 
     private struct RefreshKey: Equatable {
         var configuration: StoredConfiguration
@@ -35,11 +36,16 @@ struct GeneratedConfigView: View {
         }
         .toolbar {
             ToolbarItem {
+                Button("Test Configuration", systemImage: "testtube.2") { isTesting = true }
+                    .help("Try the pending configuration in a temporary shell without applying it")
+            }
+            ToolbarItem {
                 Button("Apply", systemImage: "checkmark.circle", action: apply)
                     .disabled(!canApply)
                     .help("Write the generated file and make sure your shell loads it")
             }
         }
+        .sheet(isPresented: $isTesting) { TestConfigurationSheet() }
         .task(id: refreshKey) { preview = await appState.preview() }
     }
 
