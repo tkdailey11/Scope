@@ -11,6 +11,7 @@ struct SidebarTests {
     @Test func configurationSectionOrderMatchesInformationArchitecture() {
         #expect(SidebarSection.configuration.items == [.overview, .environment, .path, .aliases, .functions, .generated])
         #expect(SidebarSection.scopes.items == [.profiles, .machines])
+        #expect(SidebarSection.sync.items == [.icloud])
         #expect(SidebarSection.utilities.items == [.diagnostics, .backups, .importConfig])
     }
 }

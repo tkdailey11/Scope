@@ -9,19 +9,33 @@ import SwiftUI
 
 @main
 struct ScopeApp: App {
-    @State private var appState = AppState(
-        store: JSONConfigurationStore(fileSystem: LocalFileSystem(), paths: ScopePaths())
-    )
+    @State private var appState: AppState
+    @State private var sync: SyncCoordinator
+
+    init() {
+        let appState = AppState(store: JSONConfigurationStore(fileSystem: LocalFileSystem(), paths: ScopePaths()))
+        _appState = State(initialValue: appState)
+        _sync = State(initialValue: SyncCoordinator(
+            appState: appState,
+            transport: CloudKitSyncTransport(),
+            stateStore: JSONSyncStateStore(fileSystem: LocalFileSystem(), paths: ScopePaths())
+        ))
+    }
 
     var body: some Scene {
         WindowGroup {
             RootView()
                 .environment(appState)
+                .environment(sync)
                 .frame(minWidth: 800, minHeight: 520)
                 .tint(Theme.accent)
                 // Scope's design is dark-only (Design/05_Visual_Design_System.md).
                 .preferredColorScheme(.dark)
-                .task { await appState.load() }
+                .task {
+                    await appState.load()
+                    await sync.load()
+                }
+                .onChange(of: appState.configuration) { sync.localChangesDidOccur() }
                 .alert("Scope", isPresented: errorIsPresented, presenting: appState.errorMessage) { _ in
                     Button("OK") { appState.errorMessage = nil }
                 } message: { message in

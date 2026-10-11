@@ -30,6 +30,8 @@ struct DetailView: View {
                 ProfilesView()
             case .machines:
                 MachinesView()
+            case .icloud:
+                SyncView()
             case .importConfig:
                 ImportView()
             default:

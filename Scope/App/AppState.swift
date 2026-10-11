@@ -246,6 +246,44 @@ final class AppState {
         await diagnosticsService.run(effectiveConfiguration)
     }
 
+    // MARK: - Sync
+
+    /// Every record eligible for iCloud, in a stable order. Machine-only items are excluded.
+    func syncItems() -> [SyncItem] {
+        let c = configuration
+        let all: [SyncItem] = c.profiles.map(SyncItem.profile) + c.environment.map(SyncItem.environment)
+            + c.path.map(SyncItem.path) + c.aliases.map(SyncItem.alias) + c.functions.map(SyncItem.function)
+        return all.filter(\.isPortable).map(\.portable)
+    }
+
+    /// Applies records received from iCloud. This Mac's active profile is never changed by sync.
+    func applySync(_ outcome: SyncOutcome) {
+        guard !outcome.upserts.isEmpty || !outcome.deletions.isEmpty else { return }
+        func upsert<T: Identifiable>(_ item: T, into array: inout [T]) where T.ID == UUID {
+            if let index = array.firstIndex(where: { $0.id == item.id }) { array[index] = item } else { array.append(item) }
+        }
+        for item in outcome.upserts {
+            switch item {
+            case .environment(let v): upsert(v, into: &configuration.environment)
+            case .path(let v): upsert(v, into: &configuration.path)
+            case .alias(let v): upsert(v, into: &configuration.aliases)
+            case .function(let v): upsert(v, into: &configuration.functions)
+            case .profile(var v):
+                v.isActive = configuration.profiles.first { $0.id == v.id }?.isActive ?? false
+                upsert(v, into: &configuration.profiles)
+            }
+        }
+        let ids = outcome.deletions
+        configuration.environment.removeAll { ids.contains($0.id) }
+        configuration.path.removeAll { ids.contains($0.id) }
+        configuration.aliases.removeAll { ids.contains($0.id) }
+        configuration.functions.removeAll { ids.contains($0.id) }
+        configuration.profiles.removeAll { ids.contains($0.id) }
+        persist()
+    }
+
+    var deviceIdentifier: String { deviceIdentity.identifier }
+
     // MARK: - Import
 
     /// Reads the user's zsh startup files. Read-only: nothing is changed or removed there.

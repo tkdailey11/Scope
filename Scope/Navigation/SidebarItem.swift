@@ -14,6 +14,7 @@ enum SidebarItem: String, CaseIterable, Identifiable {
     case generated
     case profiles
     case machines
+    case icloud
     case diagnostics
     case backups
     case importConfig
@@ -24,6 +25,7 @@ enum SidebarItem: String, CaseIterable, Identifiable {
         switch self {
         case .overview, .environment, .path, .aliases, .functions, .generated: .configuration
         case .profiles, .machines: .scopes
+        case .icloud: .sync
         case .diagnostics, .backups, .importConfig: .utilities
         }
     }
@@ -38,6 +40,7 @@ enum SidebarItem: String, CaseIterable, Identifiable {
         case .generated: "Generated Config"
         case .profiles: "Profiles"
         case .machines: "Machines"
+        case .icloud: "iCloud"
         case .diagnostics: "Diagnostics"
         case .backups: "Backups"
         case .importConfig: "Import"
@@ -54,6 +57,7 @@ enum SidebarItem: String, CaseIterable, Identifiable {
         case .generated: "doc.text"
         case .profiles: "person.2.crop.square.stack"
         case .machines: "laptopcomputer"
+        case .icloud: "icloud"
         case .diagnostics: "stethoscope"
         case .backups: "clock.arrow.circlepath"
         case .importConfig: "square.and.arrow.down"
@@ -71,6 +75,7 @@ enum SidebarItem: String, CaseIterable, Identifiable {
         case .generated: "Preview the shell file Scope writes, and apply it."
         case .profiles: "Named sets of configuration, like Work and Personal."
         case .machines: "Configuration that applies only to one Mac."
+        case .icloud: "Share your configuration across your Macs."
         case .diagnostics: "Find out why your configuration isn't working."
         case .backups: "Restore files Scope has backed up."
         case .importConfig: "Bring existing aliases, exports, PATH and functions into Scope."

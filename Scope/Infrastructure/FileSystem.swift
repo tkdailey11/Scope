@@ -72,6 +72,10 @@ nonisolated struct ScopePaths: Sendable {
     var configurationFile: URL {
         applicationSupportDirectory.appending(path: "configuration.json", directoryHint: .notDirectory)
     }
+    /// Per-Mac sync bookkeeping. Never synced.
+    var syncStateFile: URL {
+        applicationSupportDirectory.appending(path: "sync-state.json", directoryHint: .notDirectory)
+    }
     var backupsDirectory: URL { scopeDirectory.appending(path: "backups", directoryHint: .isDirectory) }
     var backupIndex: URL { backupsDirectory.appending(path: "index.json", directoryHint: .notDirectory) }
     var zshrc: URL { home.appending(path: ".zshrc", directoryHint: .notDirectory) }

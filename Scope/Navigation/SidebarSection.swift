@@ -3,7 +3,6 @@
 //  Scope
 //
 //  Sidebar grouping from Design/03_Information_Architecture.md.
-//  The Sync section arrives with its feature.
 //
 
 import Foundation
@@ -11,6 +10,7 @@ import Foundation
 enum SidebarSection: CaseIterable, Identifiable {
     case configuration
     case scopes
+    case sync
     case utilities
 
     var id: Self { self }
@@ -19,6 +19,7 @@ enum SidebarSection: CaseIterable, Identifiable {
         switch self {
         case .configuration: "Configuration"
         case .scopes: "Where It Applies"
+        case .sync: "Sync"
         case .utilities: "Utilities"
         }
     }
