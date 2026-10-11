@@ -34,5 +34,5 @@ Because the default actor isolation is MainActor, pure domain/serialization type
 
 ## Things to watch
 
-- The app target has `ENABLE_APP_SANDBOX = YES`. Writing to `~/.scope/` and editing `~/.zshrc`, plus launching `Process` shells, will need entitlement/user-granted-access decisions; check `Design/09_Shell_Integration.md` and `12_Decisions_and_Open_Questions.md` before choosing an approach.
+- Distribution decision: **direct distribution (notarized), App Sandbox OFF** (`ENABLE_APP_SANDBOX = NO`, hardened runtime on). Scope writes `~/.scope/`, edits the startup file, and launches `Process` shells directly. Still go through the `FileSystem` protocol (`Scope/Infrastructure/FileSystem.swift`) so the policy stays swappable and tests use temp dirs via `ScopePaths(home:)`.
 - Use the `swiftui-pro` skill when writing or reviewing SwiftUI code.
