@@ -27,10 +27,7 @@ nonisolated enum ZshGenerator {
         let aliases = try config.aliases.map { try aliasLine(for: $0.item) }
         if !aliases.isEmpty { sections.append(block("Aliases", aliases)) }
 
-        let functions = config.functions.map { resolved -> String in
-            let body = resolved.item.body.trimmingCharacters(in: .newlines)
-            return "\(resolved.item.name)() {\n\(body)\n}"
-        }
+        let functions = config.functions.map { functionText(for: $0.item) }
         if !functions.isEmpty {
             sections.append("# Functions\n" + functions.joined(separator: "\n\n"))
         }
@@ -52,6 +49,12 @@ nonisolated enum ZshGenerator {
     /// The `alias` line for one alias. Also used by the editor to preview the generated output.
     static func aliasLine(for alias: ShellAlias) throws -> String {
         "alias \(alias.name)=\(try ZshQuoting.literal(alias.command))"
+    }
+
+    /// One function definition. Leading and trailing blank lines in the body are dropped.
+    /// Also used by the editor to preview and syntax-check exactly what will be generated.
+    static func functionText(for function: ShellFunction) -> String {
+        "\(function.name)() {\n\(function.body.trimmingCharacters(in: .newlines))\n}"
     }
 
     /// The line that prepends one PATH entry. Also used by the editor to preview the generated output.

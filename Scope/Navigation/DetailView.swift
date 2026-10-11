@@ -20,6 +20,8 @@ struct DetailView: View {
                 PathView()
             case .aliases:
                 AliasView()
+            case .functions:
+                FunctionsView()
             default:
                 ComingSoonView(item: item)
             }

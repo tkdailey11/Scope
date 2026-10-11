@@ -19,6 +19,7 @@ final class AppState {
     private let store: any ConfigurationStore
     private let now: () -> Date
     let pathInspector: PathInspector
+    private let syntaxValidator: ShellSyntaxValidator
     private var saveTask: Task<Void, Never>?
     /// True after a failed load, so a bad file is never overwritten by an empty config.
     private var isReadOnly = false
@@ -28,10 +29,12 @@ final class AppState {
     init(
         store: any ConfigurationStore,
         pathInspector: PathInspector = PathInspector(),
+        syntaxValidator: ShellSyntaxValidator = ShellSyntaxValidator(fileSystem: LocalFileSystem(), processRunner: SystemProcessRunner()),
         now: @escaping () -> Date = { .now }
     ) {
         self.store = store
         self.pathInspector = pathInspector
+        self.syntaxValidator = syntaxValidator
         self.now = now
     }
 
@@ -270,5 +273,85 @@ final class AppState {
         let before = configuration.aliases.count
         configuration.aliases.removeAll { ids.contains($0.id) }
         if configuration.aliases.count != before { persist() }
+    }
+
+    // MARK: - Functions
+
+    func functions(matching search: String) -> [ShellFunction] {
+        let query = search.trimmingCharacters(in: .whitespaces)
+        return configuration.functions
+            .filter { query.isEmpty || $0.name.localizedStandardContains(query) || $0.body.localizedStandardContains(query) }
+            .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+    }
+
+    /// Names already used in `scope`, for duplicate detection. Pass the edited function's id to exclude it.
+    func functionNames(in scope: ConfigurationScope, excluding id: UUID? = nil) -> Set<String> {
+        Set(configuration.functions.filter { $0.scope == scope && $0.id != id }.map(\.name))
+    }
+
+    /// Enabled alias names in any scope. zsh refuses to define a function whose name is an alias.
+    func enabledAliasNames() -> Set<String> {
+        Set(configuration.aliases.filter(\.isEnabled).map(\.name))
+    }
+
+    /// Creates a function, or updates the one with `id`. Returns the saved function's id,
+    /// or nil (changing nothing) if the draft is invalid.
+    @discardableResult
+    func saveFunction(
+        _ draft: FunctionDraft,
+        replacing id: UUID? = nil,
+        scope: ConfigurationScope = .global
+    ) -> UUID? {
+        let existingIndex = id.flatMap { id in configuration.functions.firstIndex { $0.id == id } }
+        let effectiveScope = existingIndex.map { configuration.functions[$0].scope } ?? scope
+        guard draft.isValid(existingNames: functionNames(in: effectiveScope, excluding: id)) else { return nil }
+
+        let savedID: UUID
+        if let existingIndex {
+            configuration.functions[existingIndex].name = draft.trimmedName
+            configuration.functions[existingIndex].body = draft.body
+            configuration.functions[existingIndex].isEnabled = draft.isEnabled
+            configuration.functions[existingIndex].modifiedAt = now()
+            savedID = configuration.functions[existingIndex].id
+        } else {
+            let function = ShellFunction(
+                name: draft.trimmedName,
+                body: draft.body,
+                scope: effectiveScope,
+                isEnabled: draft.isEnabled,
+                createdAt: now(),
+                modifiedAt: now()
+            )
+            configuration.functions.append(function)
+            savedID = function.id
+        }
+        persist()
+        return savedID
+    }
+
+    func setFunction(_ id: UUID, enabled: Bool) {
+        guard let index = configuration.functions.firstIndex(where: { $0.id == id }),
+              configuration.functions[index].isEnabled != enabled else { return }
+        configuration.functions[index].isEnabled = enabled
+        configuration.functions[index].modifiedAt = now()
+        persist()
+    }
+
+    func deleteFunctions(ids: Set<UUID>) {
+        let before = configuration.functions.count
+        configuration.functions.removeAll { ids.contains($0.id) }
+        if configuration.functions.count != before { persist() }
+    }
+
+    /// Parse-only check (`zsh -n`) of the draft as it would be generated. Nil when the draft
+    /// can't be generated yet or zsh couldn't be run. Nothing in the body is executed or logged.
+    func checkSyntax(of draft: FunctionDraft) async -> SyntaxCheckResult? {
+        guard let text = draft.generatedText else { return nil }
+        do {
+            return try await syntaxValidator.validate(text)
+        } catch {
+            Self.logger.error("Syntax check could not run: \(error.localizedDescription, privacy: .public)")
+            return nil
+        }
     }
 }
