@@ -213,4 +213,62 @@ final class AppState {
         configuration.path.removeAll { ids.contains($0.id) }
         if configuration.path.count != before { persist() }
     }
+
+    // MARK: - Aliases
+
+    func aliases(matching search: String) -> [ShellAlias] {
+        let query = search.trimmingCharacters(in: .whitespaces)
+        return configuration.aliases
+            .filter { query.isEmpty || $0.name.localizedStandardContains(query) || $0.command.localizedStandardContains(query) }
+            .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+    }
+
+    /// Names already used in `scope`, for duplicate detection. Pass the edited alias's id to exclude it.
+    func aliasNames(in scope: ConfigurationScope, excluding id: UUID? = nil) -> Set<String> {
+        Set(configuration.aliases.filter { $0.scope == scope && $0.id != id }.map(\.name))
+    }
+
+    /// Creates an alias, or updates the one with `id`. Returns false (changing nothing) if the draft is invalid.
+    @discardableResult
+    func saveAlias(
+        _ draft: AliasDraft,
+        replacing id: UUID? = nil,
+        scope: ConfigurationScope = .global
+    ) -> Bool {
+        let existingIndex = id.flatMap { id in configuration.aliases.firstIndex { $0.id == id } }
+        let effectiveScope = existingIndex.map { configuration.aliases[$0].scope } ?? scope
+        guard draft.isValid(existingNames: aliasNames(in: effectiveScope, excluding: id)) else { return false }
+
+        if let existingIndex {
+            configuration.aliases[existingIndex].name = draft.trimmedName
+            configuration.aliases[existingIndex].command = draft.command
+            configuration.aliases[existingIndex].isEnabled = draft.isEnabled
+            configuration.aliases[existingIndex].modifiedAt = now()
+        } else {
+            configuration.aliases.append(ShellAlias(
+                name: draft.trimmedName,
+                command: draft.command,
+                scope: effectiveScope,
+                isEnabled: draft.isEnabled,
+                createdAt: now(),
+                modifiedAt: now()
+            ))
+        }
+        persist()
+        return true
+    }
+
+    func setAlias(_ id: UUID, enabled: Bool) {
+        guard let index = configuration.aliases.firstIndex(where: { $0.id == id }),
+              configuration.aliases[index].isEnabled != enabled else { return }
+        configuration.aliases[index].isEnabled = enabled
+        configuration.aliases[index].modifiedAt = now()
+        persist()
+    }
+
+    func deleteAliases(ids: Set<UUID>) {
+        let before = configuration.aliases.count
+        configuration.aliases.removeAll { ids.contains($0.id) }
+        if configuration.aliases.count != before { persist() }
+    }
 }

@@ -18,6 +18,8 @@ struct DetailView: View {
                 EnvironmentView()
             case .path:
                 PathView()
+            case .aliases:
+                AliasView()
             default:
                 ComingSoonView(item: item)
             }

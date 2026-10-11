@@ -24,9 +24,7 @@ nonisolated enum ZshGenerator {
         let path = try config.path.reversed().map { try pathLine(for: $0.rawPath) }
         if !path.isEmpty { sections.append(block("PATH", path)) }
 
-        let aliases = try config.aliases.map {
-            "alias \($0.item.name)=\(try ZshQuoting.literal($0.item.command))"
-        }
+        let aliases = try config.aliases.map { try aliasLine(for: $0.item) }
         if !aliases.isEmpty { sections.append(block("Aliases", aliases)) }
 
         let functions = config.functions.map { resolved -> String in
@@ -49,6 +47,11 @@ nonisolated enum ZshGenerator {
         case .expression: try ZshQuoting.expression(value)
         }
         return "export \(variable.name)=\(quoted)"
+    }
+
+    /// The `alias` line for one alias. Also used by the editor to preview the generated output.
+    static func aliasLine(for alias: ShellAlias) throws -> String {
+        "alias \(alias.name)=\(try ZshQuoting.literal(alias.command))"
     }
 
     /// The line that prepends one PATH entry. Also used by the editor to preview the generated output.
